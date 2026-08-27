@@ -52,9 +52,22 @@ cmake "$ALIBUILD_CMAKE_BUILD_DIR"                        \
        ${OPENSSL_ROOT:+-DOPENSSL_LIBRARIES=$OPENSSL_ROOT/lib/libssl.$SONAME;$OPENSSL_ROOT/lib/libcrypto.$SONAME} \
       -DZLIB_ROOT="$ZLIB_ROOT"                           \
       -DXROOTD_ROOT_DIR="$XROOTD_ROOT"                   \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON                 \
       -DLWS="$LIBWEBSOCKETS_ROOT"
 cmake --build . -- ${JOBS:+-j $JOBS} install
 
+cp ${BUILDDIR}/compile_commands.json ${INSTALLROOT}
+
+DEVEL_SOURCES="`readlink $SOURCEDIR || echo $SOURCEDIR`"
+# This really means we are in development mode. We need to make sure we
+# use the real path for sources in this case. We also copy the
+# compile_commands.json file so that IDEs can make use of it directly, this
+# is a departure from our "no changes in sourcecode" policy, but for a good reason
+# and in any case the file is in gitignore.
+if [ "$DEVEL_SOURCES" != "$SOURCEDIR" ]; then
+  perl -p -i -e "s|$SOURCEDIR|$DEVEL_SOURCES|" compile_commands.json
+  ln -sf $BUILDDIR/compile_commands.json $DEVEL_SOURCES/compile_commands.json
+fi
 # Modulefile
 mkdir -p etc/modulefiles
 alibuild-generate-module --lib --cmake > "etc/modulefiles/$PKGNAME"

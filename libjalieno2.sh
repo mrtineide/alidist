@@ -22,9 +22,22 @@ cmake $SOURCEDIR                                                   \
       -DOPENSSL_ROOT_DIR=$OPENSSL_ROOT                             \
       ${OPENSSL_ROOT:+-DOPENSSL_INCLUDE_DIRS=$OPENSSL_ROOT/include} \
       ${OPENSSL_ROOT:+-DOPENSSL_LIBRARIES=$OPENSSL_ROOT/lib/libssl.$SONAME;$OPENSSL_ROOT/lib/libcrypto.$SONAME} \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON                 \
       -DCMAKE_INSTALL_PREFIX="$INSTALLROOT"
 make ${JOBS:+-j $JOBS} install
 
+cp ${BUILDDIR}/compile_commands.json ${INSTALLROOT}
+
+DEVEL_SOURCES="`readlink $SOURCEDIR || echo $SOURCEDIR`"
+# This really means we are in development mode. We need to make sure we
+# use the real path for sources in this case. We also copy the
+# compile_commands.json file so that IDEs can make use of it directly, this
+# is a departure from our "no changes in sourcecode" policy, but for a good reason
+# and in any case the file is in gitignore.
+if [ "$DEVEL_SOURCES" != "$SOURCEDIR" ]; then
+  perl -p -i -e "s|$SOURCEDIR|$DEVEL_SOURCES|" compile_commands.json
+  ln -sf $BUILDDIR/compile_commands.json $DEVEL_SOURCES/compile_commands.json
+fi
 # Modulefile
 mkdir -p etc/modulefiles
 cat > etc/modulefiles/$PKGNAME <<EoF
